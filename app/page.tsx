@@ -17,7 +17,7 @@ const statusStyle: Record<string, string> = {
 };
 
 export default function DashboardPage() {
-  const { scenario, setSelectedRouteId, setSelectedSupplierId, setSelectedConsumerId, setSelectedChokepointId, selectedRouteId } = useSimulation();
+  const { scenario, setScenarioId, setSelectedRouteId, setSelectedSupplierId, setSelectedConsumerId, setSelectedChokepointId, selectedRouteId } = useSimulation();
   const atRisk = SHIPMENTS.filter((s) => s.status === "at risk");
   const activeScenario = getScenario(scenario.id);
 
@@ -49,6 +49,7 @@ export default function DashboardPage() {
                 onClick={() => {
                   const next = getScenario(scenarioId as any);
                   if (next) {
+                    setScenarioId(scenarioId as typeof scenario.id);
                     setSelectedRouteId(next.disruptionActive ? "route-qatar-india" : "route-saudi-europe");
                     setSelectedSupplierId(next.disruptionActive ? "supplier-qatar" : "supplier-saudi");
                     setSelectedConsumerId(next.disruptionActive ? "consumer-india" : "consumer-europe");

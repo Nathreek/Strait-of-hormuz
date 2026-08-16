@@ -8,6 +8,7 @@ const NAV = [
   { href: "/reroute", label: "Rerouter" },
   { href: "/marketplace", label: "Alternatives" },
   { href: "/hedge", label: "Hedge" },
+  { href: "/product-explanation", label: "Product Explanation" },
 ];
 
 export default function Sidebar() {
