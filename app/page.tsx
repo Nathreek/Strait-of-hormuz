@@ -35,7 +35,7 @@ export default function DashboardPage() {
       <Topbar />
       <div className="max-w-6xl mx-auto px-5 md:px-10 py-8 md:py-10">
         <PageHeader
-          eyebrow="Ops Deck"
+          eyebrow="Operation Deck"
           title="Maritime disruption exposure is now visible across the network."
           description="The dashboard connects physical shipping corridors to supplier dependency and consumer impact so the whole operating story stays coherent from chokepoint disruption to recovery planning."
         />

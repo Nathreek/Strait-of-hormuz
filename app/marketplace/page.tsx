@@ -36,9 +36,8 @@ export default function MarketplacePage() {
       <Topbar />
       <div className="max-w-6xl mx-auto px-5 md:px-10 py-8 md:py-10">
         <PageHeader
-          eyebrow="02 · EnergySwap"
+          eyebrow="Alternatives"
           title="Supply and demand are shifting as routes tighten and availability falls."
-          description="This market view updates with the disruption scenario so procurement choices reflect the changed blend of origin risk, route exposure, and available capacity."
         />
 
         <div className="flex flex-wrap items-center gap-3 mb-4">

@@ -27,9 +27,8 @@ export default function HedgePage() {
       <Topbar />
       <div className="max-w-6xl mx-auto px-5 md:px-10 py-8 md:py-10">
         <PageHeader
-          eyebrow="03 · HedgeAI"
+          eyebrow="Hedge"
           title="Financial cover for the exposure operations can't route away."
-          description="HedgeAI doesn't replace the reroute decision — it reacts to it. Every reroute or sourcing change in the console can trigger a proposed hedge here, so financial exposure never sits unmanaged while cargo is in flux."
         />
 
         <div className="border border-steel/20 rounded-md bg-abyss2/60 p-5 mb-6">

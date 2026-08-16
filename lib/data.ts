@@ -68,6 +68,7 @@ export type Chokepoint = {
 
 export type Route = {
   id: string;
+  name: string;
   supplierId: string;
   consumerId: string;
   commodityId: string;
@@ -84,12 +85,14 @@ export type Route = {
   utilization: number;
   risk: RouteRisk;
   status: "normal" | "disrupted" | "rerouted";
+  color: string;
   alternativeRouteId?: string;
   transitDelta: number;
   costDeltaPct: number;
   demandCoveredPct: number;
   riskReasons: string[];
-  waypoints: (GeoPoint | [number, number])[];
+  /** Geographic coordinates as [longitude, latitude]. */
+  waypoints: [number, number][];
 };
 
 export type Scenario = {
@@ -118,6 +121,7 @@ export const PORTS: Port[] = [
   { id: "port-rotterdam", name: "Rotterdam", country: "Netherlands", region: "Europe", x: 470, y: 102, location: { lat: 51.92, lng: 4.28 } },
   { id: "port-singapore", name: "Singapore", country: "Singapore", region: "Asia", x: 860, y: 420, location: { lat: 1.35, lng: 103.82 } },
   { id: "port-shanghai", name: "Shanghai", country: "China", region: "Asia", x: 918, y: 280, location: { lat: 31.23, lng: 121.47 } },
+  { id: "port-yokohama", name: "Yokohama LNG Terminal", country: "Japan", region: "Asia", x: 944, y: 252, location: { lat: 35.44, lng: 139.64 } },
   { id: "port-fujairah", name: "Fujairah", country: "UAE", region: "Gulf of Oman", x: 430, y: 332, location: { lat: 25.13, lng: 56.34 } },
 ];
 
@@ -142,12 +146,12 @@ export const SUPPLIERS: Supplier[] = [
 
 export const CONSUMERS: Consumer[] = [
   { id: "consumer-india", name: "Indian Refining Cluster", country: "India", commodityId: "commodity-crude", portId: "port-mumbai", x: 700, y: 360, location: { lat: 19.08, lng: 72.88 }, demand: 7300, dependency: 84, routeIds: ["route-saudi-india", "route-qatar-india", "route-kuwait-india"] },
-  { id: "consumer-japan", name: "Japanese LNG Import Hub", country: "Japan", commodityId: "commodity-lng", portId: "port-shanghai", x: 900, y: 285, location: { lat: 31.23, lng: 121.47 }, demand: 5200, dependency: 76, routeIds: ["route-qatar-japan"] },
+  { id: "consumer-japan", name: "Japanese LNG Import Hub", country: "Japan", commodityId: "commodity-lng", portId: "port-yokohama", x: 944, y: 252, location: { lat: 35.44, lng: 139.64 }, demand: 5200, dependency: 76, routeIds: ["route-qatar-japan"] },
   { id: "consumer-sg", name: "Singapore Feedstock Complex", country: "Singapore", commodityId: "commodity-petrochem", portId: "port-singapore", x: 856, y: 420, location: { lat: 1.35, lng: 103.82 }, demand: 3600, dependency: 68, routeIds: ["route-saudi-singapore"] },
   { id: "consumer-europe", name: "North Sea Refiners", country: "Europe", commodityId: "commodity-crude", portId: "port-rotterdam", x: 470, y: 102, location: { lat: 51.92, lng: 4.28 }, demand: 4600, dependency: 55, routeIds: ["route-saudi-europe"] },
 ];
 
-export const ROUTES: Route[] = [
+const ROUTE_DEFINITIONS: (Omit<Route, "name" | "color" | "waypoints"> & { waypoints: GeoPoint[] })[] = [
   {
     id: "route-saudi-india",
     supplierId: "supplier-saudi",
@@ -271,12 +275,13 @@ export const ROUTES: Route[] = [
     riskReasons: ["Long-haul routing via Suez", "Moderate diversion risk", "Regional supply concentration"],
     waypoints: [
       { lat: 26.64, lng: 50.04 },
-      { lat: 25.50, lng: 45.00 },
-      { lat: 23.00, lng: 40.00 },
-      { lat: 21.54, lng: 39.17 },
-      { lat: 20.00, lng: 35.00 },
-      { lat: 17.00, lng: 33.00 },
+      { lat: 26.57, lng: 56.25 },
+      { lat: 23.00, lng: 60.00 },
+      { lat: 17.00, lng: 59.00 },
+      { lat: 12.63, lng: 50.00 },
       { lat: 12.63, lng: 43.32 },
+      { lat: 17.00, lng: 39.00 },
+      { lat: 23.00, lng: 37.00 },
       { lat: 29.97, lng: 32.55 },
       { lat: 31.29, lng: 30.20 },
       { lat: 40.00, lng: 20.00 },
@@ -292,9 +297,9 @@ export const ROUTES: Route[] = [
     origin: "Qatar",
     destination: "Japan",
     originPort: "Ras Laffan",
-    destinationPort: "Shanghai",
+    destinationPort: "Yokohama LNG Terminal",
     originPortId: "port-ras-laffan",
-    destinationPortId: "port-shanghai",
+    destinationPortId: "port-yokohama",
     chokepointId: "chokepoint-hormuz",
     vessel: "Q-Max Zephyr",
     transitDays: 16.3,
@@ -317,7 +322,9 @@ export const ROUTES: Route[] = [
       { lat: 10.00, lng: 95.00 },
       { lat: 5.00, lng: 105.00 },
       { lat: 20.00, lng: 115.00 },
-      { lat: 31.23, lng: 121.47 },
+      { lat: 28.00, lng: 125.00 },
+      { lat: 32.00, lng: 132.00 },
+      { lat: 35.44, lng: 139.64 },
     ],
   },
   {
@@ -415,7 +422,8 @@ export const ROUTES: Route[] = [
       { lat: 24.00, lng: 58.00 },
       { lat: 20.00, lng: 62.00 },
       { lat: 15.00, lng: 65.00 },
-      { lat: 10.00, lng: 68.00 },
+      { lat: 16.00, lng: 69.00 },
+      { lat: 20.00, lng: 70.00 },
       { lat: 21.77, lng: 72.18 },
     ],
   },
@@ -454,6 +462,17 @@ export const ROUTES: Route[] = [
     ],
   },
 ];
+
+const ROUTE_COLORS = ["#e05c42", "#e05c42", "#e9a443", "#77b4c8", "#e9a443", "#e9a443", "#77b4c8", "#77b4c8", "#71b88b"];
+
+// The data consumed by the application has a single, geographic route format.
+// Keeping raw coordinates as [longitude, latitude] prevents screen-coordinate lines.
+export const ROUTES: Route[] = ROUTE_DEFINITIONS.map((route, index) => ({
+  ...route,
+  name: `${route.origin} → ${route.destination}`,
+  color: ROUTE_COLORS[index] ?? "#77b4c8",
+  waypoints: route.waypoints.map(({ lng, lat }) => [lng, lat]),
+}));
 
 export const SCENARIOS: Scenario[] = [
   { id: "normal", name: "Normal Operations", disruptionActive: false, label: "Baseline trade flow", volumeShockPct: 0, delayDays: 0, routeImpact: 0, description: "Routine tanker traffic, full Gulf access, and stable route utilization." },

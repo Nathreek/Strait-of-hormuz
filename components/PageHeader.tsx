@@ -5,7 +5,7 @@ export default function PageHeader({
 }: {
   eyebrow: string;
   title: string;
-  description: string;
+  description?: string;
 }) {
   return (
     <div className="mb-6">
@@ -13,9 +13,7 @@ export default function PageHeader({
       <h1 className="font-display text-2xl md:text-[28px] text-chart mt-1.5">
         {title}
       </h1>
-      <p className="text-mist text-sm mt-2 max-w-2xl leading-relaxed">
-        {description}
-      </p>
+      {description && <p className="text-mist text-sm mt-2 max-w-2xl leading-relaxed">{description}</p>}
     </div>
   );
 }

@@ -4,10 +4,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const NAV = [
-  { href: "/", label: "Ops Deck" },
-  { href: "/reroute", label: "Reroute Orchestrator" },
-  { href: "/marketplace", label: "EnergySwap" },
-  { href: "/hedge", label: "HedgeAI" },
+  { href: "/", label: "Operation Deck" },
+  { href: "/reroute", label: "Rerouter" },
+  { href: "/marketplace", label: "Alternatives" },
+  { href: "/hedge", label: "Hedge" },
 ];
 
 export default function Sidebar() {

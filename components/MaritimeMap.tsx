@@ -1,191 +1,46 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { CHOKEPOINTS, CONSUMERS, ROUTES, SUPPLIERS, getAffectedRoutes, getScenario } from "@/lib/data";
+import { CHOKEPOINTS, CONSUMERS, ROUTES, SUPPLIERS, type GeoPoint } from "@/lib/data";
 import { useSimulation } from "@/components/SimulationContext";
 
-function buildPath(waypoints: any[]) {
-  return waypoints.map((wp, index) => {
-    const [x, y] = "lat" in wp && "lng" in wp ? [wp.lng * 100, wp.lat * 100] : wp;
-    return `${index === 0 ? "M" : "L"} ${x} ${y}`;
-  }).join(" ");
-}
+const MAP = { width: 1000, height: 540, west: -20, east: 145, north: 60, south: -15 };
+
+// Simplified geographic coastlines for the operational theatre. Every layer uses
+// this same longitude/latitude projection, including routes and terminal markers.
+const LANDMASSES: GeoPoint[][] = [
+  [{ lng: -18, lat: 36 }, { lng: -6, lat: 35 }, { lng: 3, lat: 36 }, { lng: 10, lat: 37 }, { lng: 18, lat: 40 }, { lng: 28, lat: 41 }, { lng: 35, lat: 36 }, { lng: 34, lat: 31 }, { lng: 36, lat: 29 }, { lng: 32, lat: 25 }, { lng: 32, lat: 22 }, { lng: 36, lat: 18 }, { lng: 42, lat: 13 }, { lng: 43, lat: 12 }, { lng: 42, lat: 7 }, { lng: 40, lat: 3 }, { lng: 43, lat: -1 }, { lng: 48, lat: -12 }, { lng: 39, lat: -15 }, { lng: -20, lat: -15 }],
+  [{ lng: 29, lat: 31 }, { lng: 33, lat: 31 }, { lng: 35, lat: 30 }, { lng: 36, lat: 31 }, { lng: 35, lat: 33 }, { lng: 38, lat: 36 }, { lng: 42, lat: 37 }, { lng: 48, lat: 30 }, { lng: 51, lat: 30 }, { lng: 56, lat: 27 }, { lng: 57, lat: 25 }, { lng: 56, lat: 23 }, { lng: 52, lat: 25 }, { lng: 49, lat: 29 }, { lng: 47, lat: 30 }, { lng: 43, lat: 30 }, { lng: 42, lat: 28 }, { lng: 39, lat: 27 }, { lng: 36, lat: 29 }, { lng: 34, lat: 29 }, { lng: 33, lat: 28 }, { lng: 32, lat: 30 }],
+  [{ lng: 56, lat: 26 }, { lng: 61, lat: 25 }, { lng: 66, lat: 24 }, { lng: 68, lat: 23 }, { lng: 71, lat: 22 }, { lng: 73, lat: 19 }, { lng: 72, lat: 16 }, { lng: 74, lat: 13 }, { lng: 77, lat: 9 }, { lng: 80, lat: 8 }, { lng: 80, lat: 12 }, { lng: 78, lat: 17 }, { lng: 77, lat: 20 }, { lng: 76, lat: 23 }, { lng: 75, lat: 26 }, { lng: 79, lat: 29 }, { lng: 87, lat: 28 }, { lng: 90, lat: 24 }, { lng: 92, lat: 22 }, { lng: 95, lat: 20 }, { lng: 98, lat: 18 }, { lng: 101, lat: 14 }, { lng: 103, lat: 8 }, { lng: 106, lat: 3 }, { lng: 104, lat: 1 }, { lng: 101, lat: 2 }, { lng: 99, lat: 6 }, { lng: 98, lat: 10 }, { lng: 94, lat: 13 }, { lng: 91, lat: 16 }, { lng: 89, lat: 21 }, { lng: 86, lat: 22 }, { lng: 82, lat: 20 }, { lng: 80, lat: 17 }, { lng: 78, lat: 9 }, { lng: 76, lat: 8 }, { lng: 73, lat: 9 }, { lng: 70, lat: 12 }, { lng: 69, lat: 17 }, { lng: 66, lat: 21 }, { lng: 61, lat: 23 }],
+  [{ lng: 101, lat: 4 }, { lng: 109, lat: 2 }, { lng: 118, lat: 5 }, { lng: 120, lat: 12 }, { lng: 123, lat: 16 }, { lng: 121, lat: 22 }, { lng: 119, lat: 25 }, { lng: 121, lat: 30 }, { lng: 125, lat: 35 }, { lng: 131, lat: 34 }, { lng: 135, lat: 36 }, { lng: 140, lat: 40 }, { lng: 144, lat: 43 }, { lng: 145, lat: 60 }, { lng: 92, lat: 60 }, { lng: 83, lat: 50 }, { lng: 75, lat: 42 }, { lng: 70, lat: 36 }, { lng: 74, lat: 30 }, { lng: 80, lat: 30 }, { lng: 88, lat: 30 }, { lng: 96, lat: 27 }, { lng: 104, lat: 23 }, { lng: 108, lat: 20 }, { lng: 109, lat: 16 }, { lng: 106, lat: 10 }, { lng: 102, lat: 7 }],
+  [{ lng: -10, lat: 36 }, { lng: -4, lat: 43 }, { lng: 2, lat: 44 }, { lng: 7, lat: 43 }, { lng: 10, lat: 45 }, { lng: 14, lat: 45 }, { lng: 18, lat: 43 }, { lng: 22, lat: 41 }, { lng: 26, lat: 40 }, { lng: 30, lat: 42 }, { lng: 35, lat: 43 }, { lng: 40, lat: 45 }, { lng: 45, lat: 44 }, { lng: 52, lat: 47 }, { lng: 60, lat: 50 }, { lng: 70, lat: 55 }, { lng: 80, lat: 60 }, { lng: -10, lat: 60 }],
+];
+
+function project(point: GeoPoint) { return { x: ((point.lng - MAP.west) / (MAP.east - MAP.west)) * MAP.width, y: ((MAP.north - point.lat) / (MAP.north - MAP.south)) * MAP.height }; }
+function pathFor(points: GeoPoint[]) { return points.map((point, index) => { const { x, y } = project(point); return `${index ? "L" : "M"}${x.toFixed(1)},${y.toFixed(1)}`; }).join(" "); }
+function routeLabelPoint(points: GeoPoint[]) { return project(points[Math.floor(points.length * .6)] ?? points[0]); }
+function toGeoPoints(points: [number, number][]): GeoPoint[] { return points.map(([lng, lat]) => ({ lng, lat })); }
+function colorFor(route: (typeof ROUTES)[number]) { return route.color; }
 
 export default function MaritimeMap() {
-  const {
-    scenario,
-    selectedSupplierId,
-    setSelectedSupplierId,
-    selectedConsumerId,
-    setSelectedConsumerId,
-    selectedRouteId,
-    setSelectedRouteId,
-    selectedChokepointId,
-    setSelectedChokepointId,
-    affectedRoutes,
-  } = useSimulation();
+  const { selectedSupplierId, setSelectedSupplierId, selectedConsumerId, setSelectedConsumerId, selectedRouteId, setSelectedRouteId, selectedChokepointId, setSelectedChokepointId } = useSimulation();
   const [hoveredRouteId, setHoveredRouteId] = useState<string | null>(null);
+  const selectedRoute = ROUTES.find((route) => route.id === selectedRouteId) ?? ROUTES[0];
+  const hoveredRoute = ROUTES.find((route) => route.id === hoveredRouteId);
+  const routePaths = useMemo(() => new Map(ROUTES.map((route) => [route.id, pathFor(toGeoPoints(route.waypoints))])), []);
 
-  const visibleRoutes = useMemo(() => {
-    const base = scenario.disruptionActive ? affectedRoutes : ROUTES.filter((route) => route.status !== "normal");
-    return base.length ? base : ROUTES;
-  }, [affectedRoutes, scenario.disruptionActive]);
-
-  const selectedRoute = visibleRoutes.find((route) => route.id === selectedRouteId) ?? ROUTES.find((route) => route.id === selectedRouteId) ?? null;
-  const hoveredRoute = visibleRoutes.find((route) => route.id === hoveredRouteId) ?? selectedRoute;
-
-  return (
-    <div className="relative overflow-hidden rounded-md border border-steel/20 bg-[#071922]">
-      <div className="flex items-center justify-between border-b border-steel/15 px-4 py-3">
-        <div>
-          <p className="label-eyebrow text-signal">Maritime Dependency Map</p>
-          <p className="font-display text-chart text-lg">Global Route Exposure Map</p>
-        </div>
-        <span className="font-mono text-[11px] text-mist">{scenario.name.toUpperCase()} MODE</span>
-      </div>
-
-      <div className="relative">
-        <svg viewBox="0 0 980 540" className="w-full h-[500px]" role="img" aria-label="Map of maritime supply chain routes around the Arabian Sea, Hormuz, Red Sea, and Indian subcontinent">
-          <defs>
-            <linearGradient id="ocean" x1="0" x2="1" y1="0" y2="1">
-              <stop offset="0%" stopColor="#0c2230" />
-              <stop offset="100%" stopColor="#081a26" />
-            </linearGradient>
-          </defs>
-
-          <rect width="980" height="540" fill="url(#ocean)" />
-
-          <g opacity="0.7">
-            <path d="M0,120 L240,90 L380,120 L520,110 L620,142 L700,128 L980,150 L980,0 L0,0 Z" fill="#0e2c3a" />
-            <path d="M190,420 L300,410 L420,440 L610,400 L760,430 L980,480 L980,540 L0,540 L0,440 Z" fill="#0e2c3a" />
-          </g>
-
-          <g stroke="#9FB4BD" strokeOpacity="0.08" strokeWidth="1">
-            {Array.from({ length: 9 }).map((_, index) => (
-              <line key={`h-${index}`} x1="0" x2="980" y1={70 + index * 50} y2={70 + index * 50} />
-            ))}
-            {Array.from({ length: 12 }).map((_, index) => (
-              <line key={`v-${index}`} y1="0" y2="540" x1={80 + index * 70} x2={80 + index * 70} />
-            ))}
-          </g>
-
-          <g fontSize="11" fill="#87A4B1" fontFamily="IBM Plex Mono, monospace" letterSpacing="1.3">
-            <text x="215" y="100">PERSIAN GULF</text>
-            <text x="610" y="88">ARABIAN SEA</text>
-            <text x="742" y="210">INDIAN OCEAN</text>
-            <text x="540" y="230">RED SEA</text>
-            <text x="420" y="150">MEDITERRANEAN</text>
-            <text x="180" y="462">AFRICA</text>
-            <text x="836" y="474">ASIA</text>
-          </g>
-
-          <g>
-            {SUPPLIERS.map((supplier) => {
-              const isSelected = selectedSupplierId === supplier.id;
-              return (
-                <g key={supplier.id} onClick={() => setSelectedSupplierId(supplier.id)} style={{ cursor: "pointer" }}>
-                  <circle cx={supplier.x} cy={supplier.y} r={isSelected ? 11 : 8} fill={supplier.status === "critical" ? "#C1482E" : supplier.status === "exposed" ? "#E0932C" : "#5E8B6B"} opacity={isSelected ? 1 : 0.9} />
-                  {isSelected && <circle cx={supplier.x} cy={supplier.y} r={16} fill="none" stroke="#F3C371" strokeDasharray="4 5" />}
-                  <text x={supplier.x + 12} y={supplier.y - 10} fill="#EDE7D6" fontSize="11" fontFamily="IBM Plex Mono, monospace">{supplier.name}</text>
-                </g>
-              );
-            })}
-          </g>
-
-          <g>
-            {CHOKEPOINTS.map((chokepoint) => {
-              const isSelected = selectedChokepointId === chokepoint.id;
-              return (
-                <g key={chokepoint.id} onClick={() => setSelectedChokepointId(chokepoint.id)} style={{ cursor: "pointer" }}>
-                  <rect x={chokepoint.x - 8} y={chokepoint.y - 8} width="16" height="16" rx="3" fill={chokepoint.status === "disrupted" ? "#C1482E" : "#5C7A8A"} opacity={isSelected ? 1 : 0.75} />
-                  <text x={chokepoint.x + 14} y={chokepoint.y + 4} fill="#EDE7D6" fontSize="10" fontFamily="IBM Plex Mono, monospace">{chokepoint.name}</text>
-                </g>
-              );
-            })}
-          </g>
-
-          <g>
-            {CONSUMERS.map((consumer) => {
-              const isSelected = selectedConsumerId === consumer.id;
-              return (
-                <g key={consumer.id} onClick={() => setSelectedConsumerId(consumer.id)} style={{ cursor: "pointer" }}>
-                  <circle cx={consumer.x} cy={consumer.y} r={isSelected ? 10 : 7} fill="#5C7A8A" opacity={isSelected ? 1 : 0.8} />
-                  {isSelected && <circle cx={consumer.x} cy={consumer.y} r={16} fill="none" stroke="#A7C5D6" strokeDasharray="4 5" />}
-                  <text x={consumer.x + 12} y={consumer.y - 10} fill="#EDE7D6" fontSize="11" fontFamily="IBM Plex Mono, monospace">{consumer.name}</text>
-                </g>
-              );
-            })}
-          </g>
-
-          <g>
-            {ROUTES.map((route) => {
-              const isSelected = selectedRouteId === route.id;
-              const isDisrupted = route.status === "disrupted" || scenario.disruptionActive;
-              const isAffected = affectedRoutes.some((item) => item.id === route.id);
-              const path = buildPath(route.waypoints);
-              const muted = selectedRouteId && !isSelected && route.id !== selectedRouteId;
-              return (
-                <g key={route.id}>
-                  <path
-                    d={path}
-                    fill="none"
-                    stroke={isSelected ? "#F3C371" : isDisrupted || isAffected ? "#C1482E" : "#5E8B6B"}
-                    strokeWidth={isSelected ? 3.2 : 2}
-                    strokeLinecap="round"
-                    opacity={muted ? 0.2 : isDisrupted || isAffected ? 0.9 : 0.7}
-                    onMouseEnter={() => setHoveredRouteId(route.id)}
-                    onMouseLeave={() => setHoveredRouteId(null)}
-                    onClick={() => setSelectedRouteId(route.id)}
-                    style={{ cursor: "pointer" }}
-                  />
-                  <circle r="3" fill="#EDE7D6" opacity={0.8}>
-                    <animateMotion dur="6s" repeatCount="indefinite" path={path} rotate="auto" begin={`${route.id.length * 0.4}s`} />
-                  </circle>
-                </g>
-              );
-            })}
-          </g>
-        </svg>
-
-        <div className="pointer-events-none absolute right-4 top-4 w-64 rounded-md border border-steel/20 bg-abyss2/80 p-3 backdrop-blur-sm">
-          <p className="label-eyebrow text-steel">Selected corridor</p>
-          {hoveredRoute ? (
-            <>
-              <p className="font-display text-chart text-base mt-1">{hoveredRoute.origin} → {hoveredRoute.destination}</p>
-              <p className="font-mono text-[11px] text-mist mt-1">
-                {hoveredRoute.vessel}
-              </p>
-              <div className="mt-2 grid grid-cols-2 gap-2 text-[11px] text-mist font-mono">
-                <div><span className="text-steel">Transit</span><br />{hoveredRoute.transitDays}d</div>
-                <div><span className="text-steel">Risk</span><br />{hoveredRoute.risk}</div>
-                <div><span className="text-steel">Util.</span><br />{hoveredRoute.utilization}%</div>
-                <div><span className="text-steel">Status</span><br />{hoveredRoute.status}</div>
-              </div>
-            </>
-          ) : (
-            <p className="text-sm text-mist mt-2">Hover a route to inspect cargo flow and risk.</p>
-          )}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-px border-t border-steel/15 bg-steel/15">
-        <button onClick={() => setSelectedChokepointId("chokepoint-hormuz")} className="bg-abyss2 px-3 py-3 text-left">
-          <p className="label-eyebrow text-alert">Chokepoint</p>
-          <p className="font-display text-chart text-base mt-1">Strait of Hormuz</p>
-        </button>
-        <button onClick={() => setSelectedSupplierId("supplier-qatar")} className="bg-abyss2 px-3 py-3 text-left">
-          <p className="label-eyebrow text-signal">Supplier</p>
-          <p className="font-display text-chart text-base mt-1">Qatar LNG</p>
-        </button>
-        <button onClick={() => setSelectedConsumerId("consumer-india")} className="bg-abyss2 px-3 py-3 text-left">
-          <p className="label-eyebrow text-steel">Consumer</p>
-          <p className="font-display text-chart text-base mt-1">India</p>
-        </button>
-        <button onClick={() => setSelectedRouteId("route-qatar-india")} className="bg-abyss2 px-3 py-3 text-left">
-          <p className="label-eyebrow text-good">Active route</p>
-          <p className="font-display text-chart text-base mt-1">Qatar → India</p>
-        </button>
-      </div>
-    </div>
-  );
+  return <div className="relative overflow-hidden rounded-md border border-steel/20 bg-[#071922]">
+    <div className="flex items-center justify-between border-b border-steel/15 px-4 py-3"><div><p className="label-eyebrow text-signal">Maritime Dependency Map</p><p className="font-display text-chart text-lg">Global Route Exposure Map</p></div><span className="font-mono text-[11px] text-mist">{ROUTES.length} ACTIVE CORRIDORS</span></div>
+    <div className="relative"><svg viewBox={`0 0 ${MAP.width} ${MAP.height}`} className="h-[500px] w-full" role="img" aria-label="Geographic maritime shipping routes from the Gulf to India, Europe, Japan and Singapore">
+      <defs><linearGradient id="ocean" x1="0" y1="0" x2="1" y2="1"><stop stopColor="#0c2938"/><stop offset="1" stopColor="#06141e"/></linearGradient><filter id="routeGlow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="4" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter><pattern id="grid" width="75" height="60" patternUnits="userSpaceOnUse"><path d="M 75 0 L 0 0 0 60" fill="none" stroke="#9fb4bd" strokeOpacity=".08"/></pattern></defs>
+      <rect width={MAP.width} height={MAP.height} fill="url(#ocean)"/><rect width={MAP.width} height={MAP.height} fill="url(#grid)"/>
+      <g fill="#183945" stroke="#41616b" strokeOpacity=".7" strokeWidth="1.2">{LANDMASSES.map((land, index) => <path key={index} d={`${pathFor(land)} Z`}/>)}</g>
+      <g fill="#7898a5" fillOpacity=".7" fontSize="11" fontFamily="IBM Plex Mono, monospace" letterSpacing="1.5"><text x="395" y="250">ARABIAN SEA</text><text x="625" y="360">INDIAN OCEAN</text><text x="300" y="274">RED SEA</text><text x="240" y="145">MEDITERRANEAN</text><text x="570" y="170">ASIA</text></g>
+      <g aria-label="Maritime routes">{ROUTES.map((route) => { const path = routePaths.get(route.id)!; const isSelected = route.id === selectedRouteId; const isHovered = route.id === hoveredRouteId; const muted = Boolean(selectedRouteId && !isSelected && !isHovered); const color = colorFor(route); const label = routeLabelPoint(toGeoPoints(route.waypoints)); return <g key={route.id} opacity={muted ? .2 : 1}><path d={path} fill="none" stroke={color} strokeOpacity=".38" strokeWidth={isSelected ? 15 : 8} strokeLinecap="round" filter={isSelected || isHovered ? "url(#routeGlow)" : undefined}/><path d={path} fill="none" stroke={color} strokeWidth={isSelected ? 5 : isHovered ? 3.6 : 2.3} strokeLinecap="round" strokeLinejoin="round" strokeDasharray={isSelected ? undefined : "8 5"}/><path d={path} fill="none" stroke="transparent" strokeWidth="18" strokeLinecap="round" onMouseEnter={() => setHoveredRouteId(route.id)} onMouseLeave={() => setHoveredRouteId(null)} onClick={() => setSelectedRouteId(route.id)} style={{ cursor: "pointer" }}><title>{`${route.origin} → ${route.destination} · ${route.risk} · ${route.status}`}</title></path>{(isSelected || isHovered) && <text x={label.x + 10} y={label.y - 10} fill="#f5d18d" fontSize="10" fontFamily="IBM Plex Mono, monospace">{route.origin.toUpperCase()} → {route.destination.toUpperCase()}</text>}<circle r={isSelected ? 4.5 : 3} fill="#f8ead0" stroke={color} strokeWidth="2"><animateMotion dur={isSelected ? "5s" : "8s"} repeatCount="indefinite" path={path} begin={`${route.id.length * -.2}s`}/></circle></g>; })}</g>
+      <g>{SUPPLIERS.map((supplier) => { const p = project(supplier.location!); return <g key={supplier.id} onClick={() => setSelectedSupplierId(supplier.id)} style={{ cursor: "pointer" }}><circle cx={p.x} cy={p.y} r={supplier.id === selectedSupplierId ? 8 : 5} fill="#e05c42" stroke="#f5d18d" strokeWidth="1.5"/><text x={p.x + 8} y={p.y - 7} fill="#e8dfca" fontSize="9" fontFamily="IBM Plex Mono, monospace">{supplier.portName}</text></g>; })}</g>
+      <g>{CONSUMERS.map((consumer) => { const p = project(consumer.location!); return <g key={consumer.id} onClick={() => setSelectedConsumerId(consumer.id)} style={{ cursor: "pointer" }}><circle cx={p.x} cy={p.y} r={consumer.id === selectedConsumerId ? 7 : 4.5} fill="#77b4c8" stroke="#e8dfca" strokeWidth="1.3"/><text x={p.x + 8} y={p.y + 13} fill="#e8dfca" fontSize="9" fontFamily="IBM Plex Mono, monospace">{consumer.country}</text></g>; })}</g>
+      <g>{CHOKEPOINTS.map((chokepoint) => { const p = project(chokepoint.location!); return <g key={chokepoint.id} onClick={() => setSelectedChokepointId(chokepoint.id)} style={{ cursor: "pointer" }}><rect x={p.x - 5} y={p.y - 5} width="10" height="10" rx="2" fill={chokepoint.status === "disrupted" ? "#e05c42" : "#e9a443"} stroke={chokepoint.id === selectedChokepointId ? "#f5d18d" : "none"} strokeWidth="2"/><text x={p.x + 8} y={p.y + 3} fill="#e8dfca" fontSize="9" fontFamily="IBM Plex Mono, monospace">{chokepoint.name}</text></g>; })}</g>
+    </svg>{hoveredRoute && <div className="pointer-events-none absolute left-4 top-4 rounded border border-signal/40 bg-abyss/95 px-3 py-2 shadow-lg"><p className="font-mono text-xs text-chart">{hoveredRoute.origin} → {hoveredRoute.destination}</p><p className="mt-1 text-[10px] text-mist">{hoveredRoute.vessel}</p><p className="mt-1 font-mono text-[10px] text-alert">RISK: {hoveredRoute.risk} · {hoveredRoute.status.toUpperCase()}</p></div>}</div>
+    <div className="flex flex-wrap gap-x-5 gap-y-2 border-t border-steel/15 bg-abyss2 px-4 py-3 font-mono text-[10px] text-mist"><span><i className="mr-2 inline-block h-2 w-2 rounded-full bg-[#e05c42]"/>Origin terminal</span><span><i className="mr-2 inline-block h-2 w-2 rounded-full bg-[#77b4c8]"/>Destination terminal</span><span><i className="mr-2 inline-block h-2 w-2 rounded-sm bg-[#e9a443]"/>Maritime chokepoint</span><span className="text-chart">Selected: {selectedRoute.origin} → {selectedRoute.destination}</span></div>
+  </div>;
 }

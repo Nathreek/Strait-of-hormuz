@@ -1,10 +1,10 @@
 import Link from "next/link";
 
 const NAV = [
-  { href: "/", label: "Ops Deck" },
-  { href: "/reroute", label: "Reroute" },
-  { href: "/marketplace", label: "EnergySwap" },
-  { href: "/hedge", label: "HedgeAI" },
+  { href: "/", label: "Operation Deck" },
+  { href: "/reroute", label: "Rerouter" },
+  { href: "/marketplace", label: "Alternatives" },
+  { href: "/hedge", label: "Hedge" },
 ];
 
 export default function Topbar() {

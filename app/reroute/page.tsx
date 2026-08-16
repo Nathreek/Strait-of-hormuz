@@ -38,9 +38,8 @@ export default function ReroutePage() {
       <Topbar />
       <div className="max-w-6xl mx-auto px-5 md:px-10 py-8 md:py-10">
         <PageHeader
-          eyebrow="01 · Reroute Orchestrator"
+          eyebrow="Rerouter"
           title="Assign each at-risk shipment to the route that preserves supply continuity."
-          description="The orchestrator compares alternative corridors by added transit time, cost, capacity, and chokepoint dependence, then recommends the least-disruptive path for the specific cargo under review."
         />
 
         <div className="border border-steel/20 rounded-md bg-abyss2/60 p-5 mb-5">
